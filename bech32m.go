@@ -68,7 +68,7 @@ func convertbits(data []byte, frombits, tobits uint, pad bool) ([]byte, error) {
 	// General power-of-2 base conversion.
 	acc := 0
 	bits := uint(0)
-	ret := []byte{}
+	var ret []byte
 	maxv := (1 << tobits) - 1
 	maxAcc := (1 << (frombits + tobits - 1)) - 1
 	for _, value := range data {
@@ -128,8 +128,10 @@ func SegwitAddrEncode(hrp string, witver byte, witprog []byte) (string, error) {
 	if witver == 0 {
 		spec = Bech32
 	}
-	data, _ := convertbits(witprog, 8, 5, true)
-	ret := Encode(hrp, append([]byte{witver}, data...), spec)
+	data := make([]byte, 1+base32EncLen(len(witprog)))
+	base32Encode(data[1:], witprog)
+	data[0] = witver
+	ret := Encode(hrp, data, spec)
 	_, _, err := SegwitAddrDecode(hrp, ret)
 	if err != nil {
 		return "", err
