@@ -64,33 +64,6 @@ func Decode(bechString string) (string, []byte, int, error) {
 	return hrp, data[:len(data)-6], spec, nil
 }
 
-func convertbits(data []byte, frombits, tobits uint, pad bool) ([]byte, error) {
-	// General power-of-2 base conversion.
-	acc := 0
-	bits := uint(0)
-	var ret []byte
-	maxv := (1 << tobits) - 1
-	maxAcc := (1 << (frombits + tobits - 1)) - 1
-	for _, value := range data {
-		acc = ((acc << frombits) | int(value)) & maxAcc
-		bits += frombits
-		for bits >= tobits {
-			bits -= tobits
-			ret = append(ret, byte((acc>>bits)&maxv))
-		}
-	}
-	if pad {
-		if bits > 0 {
-			ret = append(ret, byte((acc<<(tobits-bits))&maxv))
-		}
-	} else if bits >= frombits {
-		return nil, fmt.Errorf("More than 4 padding bits")
-	} else if ((acc << (tobits - bits)) & maxv) != 0 {
-		return nil, fmt.Errorf("Non-zero padding in %d-to-%d conversion", tobits, frombits)
-	}
-	return ret, nil
-}
-
 // SegwitAddrDecode decode a segwit address.
 func SegwitAddrDecode(hrp, addr string) (byte, []byte, error) {
 	hrpgot, data, spec, err := Decode(addr)
@@ -106,7 +79,8 @@ func SegwitAddrDecode(hrp, addr string) (byte, []byte, error) {
 	if data[0] > 16 {
 		return byte(0), nil, fmt.Errorf("Invalid witness version")
 	}
-	res, err := convertbits(data[1:], 5, 8, false)
+	res := make([]byte, base32DecLen(len(data)-1))
+	_, _, err = base32Decode(res, data[1:])
 	if err != nil {
 		return byte(0), nil, err
 	}

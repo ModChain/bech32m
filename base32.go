@@ -61,13 +61,59 @@ func base32Encode(dst, src []byte) {
 		dst[di+1] = byte(val >> 22 & 0x1F)
 		dst[di+0] = byte(val >> 27 & 0x1F)
 	}
+}
 
-	// Pad the final quantum
-	/*
-		if enc.padChar != NoPadding {
-			nPad := (remain * 8 / 5) + 1
-			for i := nPad; i < 8; i++ {
-				dst[di+i] = byte(enc.padChar)
+func base32DecLen(n int) int {
+	return n/8*5 + n%8*5/8
+}
+
+func base32Decode(dst, src []byte) (n int, end bool, err error) {
+	dsti := 0
+
+	for len(src) > 0 && !end {
+		// Decode quantum using the base32 alphabet
+		var dbuf [8]byte
+		dlen := 8
+
+		for j := 0; j < 8; {
+			if len(src) == 0 {
+				// We have reached the end and are not expecting any padding
+				dlen, end = j, true
+				break
 			}
-		}*/
+			in := src[0]
+			src = src[1:]
+			dbuf[j] = in
+			if in > 0x1f {
+				return n, false, ErrCorruptInput
+			}
+			j++
+		}
+
+		// Pack 8x 5-bit source blocks into 5 byte destination
+		// quantum
+		switch dlen {
+		case 8:
+			dst[dsti+4] = dbuf[6]<<5 | dbuf[7]
+			n++
+			fallthrough
+		case 7:
+			dst[dsti+3] = dbuf[4]<<7 | dbuf[5]<<2 | dbuf[6]>>3
+			n++
+			fallthrough
+		case 5:
+			dst[dsti+2] = dbuf[3]<<4 | dbuf[4]>>1
+			n++
+			fallthrough
+		case 4:
+			dst[dsti+1] = dbuf[1]<<6 | dbuf[2]<<1 | dbuf[3]>>4
+			n++
+			fallthrough
+		case 2:
+			dst[dsti+0] = dbuf[0]<<3 | dbuf[1]>>2
+			n++
+		}
+		dsti += 5
+	}
+	return n, end, nil
 }

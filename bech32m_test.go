@@ -225,15 +225,15 @@ func TestInvalidAddress(t *testing.T) {
 		ver, _, err := bech32m.SegwitAddrDecode("bc", test)
 		if err == nil {
 			t.Errorf("NG %d : %s", ver, test)
-			continue
+		} else {
+			t.Logf("OK : %v", err)
 		}
-		t.Logf("OK : %v", err)
 		_, _, err = bech32m.SegwitAddrDecode("tb", test)
 		if err == nil {
 			t.Errorf("NG : %s", test)
-			continue
+		} else {
+			t.Logf("OK : %v", err)
 		}
-		t.Logf("OK : %v", err)
 	}
 }
 
