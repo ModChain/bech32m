@@ -2,22 +2,11 @@ package bech32m
 
 // See: https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki
 
-var polymodTable = makePolymodTable()
-
-// makePolymodTable pre-compute polymod values so we can fully get rid of the loop in polymodUpdate
-func makePolymodTable() (t [32]uint32) {
-	for top := 0; top < 32; top += 1 {
-		var chk uint32
-		for i, g := range [...]uint32{0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3} {
-			if (top>>i)&1 == 1 {
-				chk ^= g
-			} else {
-				chk ^= 0
-			}
-		}
-		t[top] = chk
-	}
-	return
+var polymodTable = [32]uint32{
+	0x0, 0x3b6a57b2, 0x26508e6d, 0x1d3ad9df, 0x1ea119fa, 0x25cb4e48, 0x38f19797, 0x39bc025,
+	0x3d4233dd, 0x628646f, 0x1b12bdb0, 0x2078ea02, 0x23e32a27, 0x18897d95, 0x5b3a44a, 0x3ed9f3f8,
+	0x2a1462b3, 0x117e3501, 0xc44ecde, 0x372ebb6c, 0x34b57b49, 0xfdf2cfb, 0x12e5f524, 0x298fa296,
+	0x1756516e, 0x2c3c06dc, 0x3106df03, 0xa6c88b1, 0x9f74894, 0x329d1f26, 0x2fa7c6f9, 0x14cd914b,
 }
 
 // polymodUpdate returns the updated chk value for a given value v
