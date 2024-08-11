@@ -112,3 +112,15 @@ func SegwitAddrEncode(hrp string, witver byte, witprog []byte) (string, error) {
 	}
 	return ret, nil
 }
+
+// SegwitAddrEncodeNoCheck is the same as SegwitAddrEncode but it will not check if the generated address is valid
+func SegwitAddrEncodeNoCheck(hrp string, witver byte, witprog []byte) (string, error) {
+	spec := Bech32m
+	if witver == 0 {
+		spec = Bech32
+	}
+	data := make([]byte, 1+base32EncLen(len(witprog)))
+	base32Encode(data[1:], witprog)
+	data[0] = witver
+	return Encode(hrp, data, spec), nil
+}
