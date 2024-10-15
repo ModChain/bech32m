@@ -210,7 +210,9 @@ func TestValidChecksum(t *testing.T) {
 
 func TestValidCashAddr(t *testing.T) {
 	for _, v := range validCashAddr {
-		vers, data, err := bech32m.CashAddrDecode("", v.addr)
+		pos := strings.LastIndexByte(v.addr, ':')
+		hrp := v.addr[:pos+1]
+		vers, data, err := bech32m.CashAddrDecode(hrp, v.addr)
 		if err != nil {
 			t.Errorf("NG: %s %s", v.addr, err)
 			continue
@@ -223,6 +225,15 @@ func TestValidCashAddr(t *testing.T) {
 		}
 		if !bytes.Equal(data, must(hex.DecodeString(v.hex))) {
 			t.Errorf("NG : unexpected result buffer for addr %s: %x != %s", v.addr, data, v.hex)
+		}
+
+		// test encoding
+		addr, err := bech32m.CashAddrEncode(hrp, vers, data)
+		if err != nil {
+			t.Errorf("NG : failed to generate addr: %s", err)
+		}
+		if addr != v.addr {
+			t.Errorf("NG : failed to get the original address when re-encoding cashaddr; %s != %s", v.addr, addr)
 		}
 	}
 }

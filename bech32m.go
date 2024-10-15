@@ -2,7 +2,9 @@ package bech32m
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -82,7 +84,7 @@ func Decode(bechString string) (string, []byte, int, error) {
 	if cashAddr {
 		// perform BCH Polymod (expect chk==0)
 		chk := cashPolymodHrp(hrp, data)
-		if chk != 0 {
+		if chk != 1 {
 			return "", nil, Failed, ErrInvalidChecksum
 		}
 		return hrp + ":", data[:len(data)-checksumLen], CashAddr, nil
@@ -124,6 +126,26 @@ func CashAddrDecode(hrp, addr string) (byte, []byte, error) {
 	vers = vers >> 3
 
 	return vers, res, nil
+}
+
+func CashAddrEncode(hrp string, vers byte, buf []byte) (string, error) {
+	bit := (vers & 0xf) << 3
+	found := false
+	for n, l := range cashAddrLength {
+		if len(buf) == l {
+			bit |= byte(n)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return "", errors.New("cashaddr hash must be one of the specified bitlength")
+	}
+
+	data := make([]byte, base32EncLen(len(buf)+1))
+	base32Encode(data, slices.Concat([]byte{bit}, buf))
+
+	return Encode(hrp, data, CashAddr), nil
 }
 
 // SegwitAddrDecode decode a segwit address.

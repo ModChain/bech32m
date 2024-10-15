@@ -70,5 +70,5 @@ func cashPolymodHrp(hrp string, values ...[]byte) uint64 {
 		}
 	}
 
-	return chk ^ 1
+	return chk
 }

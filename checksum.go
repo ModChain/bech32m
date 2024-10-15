@@ -29,11 +29,10 @@ func createChecksum(hrp string, data []byte, spec int) []byte {
 
 func createCashChecksum(hrp string, data []byte) []byte {
 	// compute the checksum values
-	c := uint64(1)
-	mod := cashPolymodHrp(hrp, data, []byte{0, 0, 0, 0, 0, 0, 0, 0}) ^ c
+	mod := cashPolymodHrp(hrp, data, []byte{0, 0, 0, 0, 0, 0, 0, 0}) ^ 1
 	ret := make([]byte, 8)
 	for i := 0; i < len(ret); i++ {
-		ret[i] = byte(mod>>uint64(5*(5-i))) & 31
+		ret[i] = byte(mod>>uint64(5*(7-i))) & 31
 	}
 	return ret
 }
