@@ -1,9 +1,10 @@
 package bech32m
 
 const (
-	Bech32  = 1
-	Bech32m = 2
-	Failed  = -1
+	Bech32   = 1
+	Bech32m  = 2
+	CashAddr = 3
+	Failed   = -1
 
 	charset      = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 	bech32mConst = 0x2bc830a3

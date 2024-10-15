@@ -8,6 +8,17 @@ import (
 
 // Encode compute a Bech32 string given HRP and data values.
 func Encode(hrp string, data []byte, spec int) string {
+	if spec == CashAddr {
+		combined := append(data, createCashChecksum(hrp[:len(hrp)-1], data)...)
+		var ret bytes.Buffer
+		ret.Grow(len(hrp) + len(combined))
+		ret.WriteString(hrp)
+		for _, p := range combined {
+			ret.WriteByte(charset[p])
+		}
+		return ret.String()
+	}
+
 	combined := append(data, createChecksum(hrp, data, spec)...)
 
 	var ret bytes.Buffer
@@ -22,7 +33,7 @@ func Encode(hrp string, data []byte, spec int) string {
 
 // Decode validate a Bech32/Bech32m string, and determine HRP and data.
 func Decode(bechString string) (string, []byte, int, error) {
-	if len(bechString) > 90 {
+	if len(bechString) > 127 {
 		return "", nil, Failed, ErrMaxLengthExceeded
 	}
 	if strings.ToLower(bechString) != bechString && strings.ToUpper(bechString) != bechString {
@@ -30,13 +41,24 @@ func Decode(bechString string) (string, []byte, int, error) {
 	}
 	bechString = strings.ToLower(bechString)
 	pos := strings.LastIndexByte(bechString, '1')
+	cashAddr := false
+	checksumLen := 6
+
 	if pos < 0 {
-		return "", nil, Failed, fmt.Errorf("No separator character")
+		pos = strings.LastIndexByte(bechString, ':')
+		if pos < 0 {
+			return "", nil, Failed, fmt.Errorf("No separator character")
+		}
+		// CashAddr
+		cashAddr = true
+		checksumLen = 8
+	} else if len(bechString) > 90 {
+		return "", nil, Failed, ErrMaxLengthExceeded
 	}
 	if pos < 1 {
 		return "", nil, Failed, fmt.Errorf("Empty HRP")
 	}
-	if pos+7 > len(bechString) {
+	if pos+1+checksumLen > len(bechString) {
 		return "", nil, Failed, fmt.Errorf("Too short checksum")
 	}
 	hrp := bechString[0:pos]
@@ -50,18 +72,58 @@ func Decode(bechString string) (string, []byte, int, error) {
 	for p, c := range bechString[pos+1:] {
 		d := deccharset[c&0x7f]
 		if d == 0xff || c > 0x7f {
-			if p+pos+6 > len(bechString) {
+			if p+pos+checksumLen > len(bechString) {
 				return "", nil, Failed, fmt.Errorf("Invalid character in checksum")
 			}
-			return "", nil, Failed, fmt.Errorf("Invalid data character")
+			return "", nil, Failed, fmt.Errorf("Invalid data character %c", c)
 		}
 		data = append(data, d)
+	}
+	if cashAddr {
+		// perform BCH Polymod (expect chk==0)
+		chk := cashPolymodHrp(hrp, data)
+		if chk != 0 {
+			return "", nil, Failed, ErrInvalidChecksum
+		}
+		return hrp + ":", data[:len(data)-checksumLen], CashAddr, nil
 	}
 	spec := verifyChecksum(hrp, data)
 	if spec == Failed {
 		return "", nil, Failed, ErrInvalidChecksum
 	}
-	return hrp, data[:len(data)-6], spec, nil
+	return hrp, data[:len(data)-checksumLen], spec, nil
+}
+
+var cashAddrLength = [...]int{20, 24, 28, 32, 40, 48, 56, 64} // in bytes
+
+func CashAddrDecode(hrp, addr string) (byte, []byte, error) {
+	hrpgot, data, spec, err := Decode(addr)
+	if err != nil {
+		return byte(0), nil, err
+	}
+	if spec != CashAddr {
+		return byte(0), nil, fmt.Errorf("unexpected spec for address")
+	}
+	if hrp != "" && hrpgot != hrp {
+		return byte(0xff), nil, fmt.Errorf("Invalid HRP")
+	}
+	if len(data) < 1 {
+		return byte(0), nil, fmt.Errorf("Empty data section")
+	}
+	res := make([]byte, base32DecLen(len(data)))
+	_, _, err = base32Decode(res, data)
+	if err != nil {
+		return byte(0), nil, err
+	}
+	vers := res[0]
+	res = res[1:]
+
+	if expectedLen := cashAddrLength[vers&7]; len(res) != expectedLen {
+		return byte(0), nil, fmt.Errorf("payload length does not match expected length, got %d bytes instead of %d", len(res), expectedLen)
+	}
+	vers = vers >> 3
+
+	return vers, res, nil
 }
 
 // SegwitAddrDecode decode a segwit address.
